@@ -9,7 +9,7 @@ import pandas as pd
 
 from datetime import datetime
 
-# 1. import Flask
+# Import Flask
 from flask import Flask, jsonify
 
 import datetime as dt
@@ -48,14 +48,31 @@ def welcome():
     print("Welcome page request.")
     
     return (
+    f"<br/>"
+    f"<br/>"
+    f"Welcome to Surf's UP, Hawaii's Weather API!!!!<br/>"
+    f"Please note that data is available from January 1, 2010 to August 23, 2017.<br/>"
+    f"<br/>"
     f"Available Routes:<br/>"
+    f"<br/>"
     f"/api/v1.0/precipitation<br/>"
+    f"- A list of dates and precipitation observations from the last year.<br/>"
+    f"<br/>"
     f"/api/v1.0/stations<br/>"
-    f"/api/v1.0/tobs<br/>"
-    f"/api/v1.0/<start><br/>"
-    f"/api/v1.0/<start><end><br/>"
+    f"- A list of stations from the dataset.<br/>"
+    f"<br/>"
+    f"/api/v1.0/tobs<br/>"    
+    f"- A list of Temperature Observations (tobs) for the previous year.<br/>"
+    f"<br/>"
+    f"/api/v1.0/2015-05-18<br/>"
+    f"- A list of Min, Max, and Avg Temperature Observations (tobs) for particulater start date.<br/>"
+    f"<br/>"
+    f"/api/v1.0/2015-05-18/2015-09-18<br/>"
+    f"- A list of Min, Max, and Avg Temperature Observations (tobs) for particulater start and end date.<br/>"
     )
 
+
+#################################################
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     """Return a JSON list of precipitation from the dataset."""
@@ -73,12 +90,17 @@ def precipitation():
     precipitation_results = session.query(func.strftime("%Y-%m-%d", Measurement.date), Measurement.prcp).\
         filter(func.strftime("%Y-%m-%d", Measurement.date) >= start_date).all()
     
+    # Close the Query
+    session.close() 
+    
     precipitation = {}
     for result in precipitation_results:
             precipitation[result[0]] = result[1]
     
     return jsonify(precipitation)
-    
+
+
+#################################################
 @app.route("/api/v1.0/stations")
 def stations():
     """Return a JSON list of stations from the dataset."""
@@ -87,6 +109,9 @@ def stations():
     
     # Get station data.
     stations_results = session.query(Station).all()
+    
+    # Close the Query
+    session.close() 
     
     #Create a list of dictionaries
     stations_list=[]
@@ -102,6 +127,8 @@ def stations():
     
     return jsonify(stations_list)
      
+
+#################################################
 @app.route("/api/v1.0/tobs")
 def tobs():
     """Return a JSON list of temperature observation from the dataset."""
@@ -119,6 +146,9 @@ def tobs():
     temperature_results = session.query(Measurement).\
         filter(func.strftime("%Y-%m-%d", Measurement.date) >= start_date).all()
 
+    # Close the Query
+    session.close() 
+    
     #Create a list of dictionaries
     temperature_list=[]
     for temperature in temperature_results:
@@ -130,8 +160,62 @@ def tobs():
         temperature_list.append(temperature_dictionary)
     
     return jsonify(temperature_list)
-   
+
+
+#################################################
+@app.route("/api/v1.0/<start>")
+
+def start(start):
+    """Return a JSON list of Min, Max, and Avg Temperature Observations (tobs) for particulater start date."""
+    
+    print("Received start api request.")
+    
+    start_date_result = session.query(Measurement.date, func.max(Measurement.tobs),func.min(Measurement.tobs),func.round(func.avg(Measurement.tobs))).\
+        filter(Measurement.date >= start).all()
+
+    # Close the Query
+    session.close() 
+    
+    # Create a list
+    start_temperature_list = []
+    for tobs in start_date_result:
+        start_temperature_dict ={}
+        start_temperature_dict["Max Temp"]=float(tobs[1])
+        start_temperature_dict["Min Temp"]=float(tobs[2])
+        start_temperature_dict["Avg Temp"]=float(tobs[3])
+        start_temperature_list.append(start_temperature_dict)
   
+    return jsonify(start_temperature_list)
+
+
+#################################################
+@app.route("/api/v1.0/<start>/<end>")
+
+def startend(start, end):
+    """Return a JSON list of Min, Max, and Avg Temperature Observations (tobs) for particulater start and end date."""
+    
+    print("Received start - end api request.")
+    
+    start_date_2_result = session.query(func.max(Measurement.tobs),func.min(Measurement.tobs),func.round(func.avg(Measurement.tobs))).\
+        filter(Measurement.date.between(start,end)).all()
+
+    # Close the Query
+    session.close() 
+    
+    # Create a list
+    start_temperature_2_list = []
+    for tobs in start_date_2_result:
+        start_temperature_2_dict ={}
+        start_temperature_2_dict["Max Temp"]=float(tobs[0])
+        start_temperature_2_dict["Min Temp"]=float(tobs[1])
+        start_temperature_2_dict["Avg Temp"]=float(tobs[2])
+        start_temperature_2_list.append(start_temperature_2_dict)
+  
+    return jsonify(start_temperature_2_list)
+
+
+#################################################
+
 if __name__ == '__main__':
     app.run(debug=True)
     
